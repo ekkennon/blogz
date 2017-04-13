@@ -1,18 +1,22 @@
-import webapp2, jinja2, os, re
-from google.appengine.ext import db
-from models import Post, User
+import webapp2
+import jinja2
+import os
+import re
 import hashutils
+from google.appengine.ext import db
+from models import Post
+from models import User
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
-jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), autoescape = True)
+jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), autoescape=True)
+
 
 class BlogHandler(webapp2.RequestHandler):
     """ Utility class for gathering various useful methods that are used by most request handlers """
 
     def get_posts(self, limit, offset):
         """ Get all posts ordered by creation date (descending) """
-        query = Post.all().order('-created')
-        return query.fetch(limit=limit, offset=offset)
+        return Post.all().order('-created').fetch(limit=limit, offset=offset)
 
     def get_posts_by_user(self, user, limit, offset):
         """
@@ -21,7 +25,7 @@ class BlogHandler(webapp2.RequestHandler):
         """
 
         # TODO - filter the query so that only posts by the given user
-        return None
+        return db.Query(Post).filter('author', user).order('-created').fetch(limit=limit, offset=offset)
 
     def get_user_by_name(self, username):
         """ Get a user object from the db, based on their username """
@@ -60,6 +64,7 @@ class BlogHandler(webapp2.RequestHandler):
         if not self.user and self.request.path in auth_paths:
             self.redirect('/login')
 
+
 class IndexHandler(BlogHandler):
 
     def get(self):
@@ -69,8 +74,8 @@ class IndexHandler(BlogHandler):
         response = t.render(users = users)
         self.response.write(response)
 
-class BlogIndexHandler(BlogHandler):
 
+class BlogIndexHandler(BlogHandler):
     # number of blog posts per page to display
     page_size = 5
 
@@ -115,6 +120,7 @@ class BlogIndexHandler(BlogHandler):
                     username=username)
         self.response.out.write(response)
 
+
 class NewPostHandler(BlogHandler):
 
     def render_form(self, title="", body="", error=""):
@@ -147,6 +153,7 @@ class NewPostHandler(BlogHandler):
             error = "we need both a title and a body!"
             self.render_form(title, body, error)
 
+
 class ViewPostHandler(BlogHandler):
 
     def get(self, id):
@@ -162,6 +169,7 @@ class ViewPostHandler(BlogHandler):
             response = t.render(error=error)
 
         self.response.out.write(response)
+
 
 class SignupHandler(BlogHandler):
 
@@ -256,6 +264,7 @@ class SignupHandler(BlogHandler):
         else:
             self.redirect('/blog/newpost')
 
+
 class LoginHandler(BlogHandler):
 
     # TODO - The login code here is mostly set up for you, but there isn't a template to log in
@@ -284,13 +293,15 @@ class LoginHandler(BlogHandler):
         else:
             self.render_login_form(error="Invalid password")
 
+
 class LogoutHandler(BlogHandler):
 
     def get(self):
         self.logout_user()
         self.redirect('/blog')
 
-app = webapp2.WSGIApplication([
+
+routes = [
     ('/', IndexHandler),
     ('/blog', BlogIndexHandler),
     ('/blog/newpost', NewPostHandler),
@@ -299,7 +310,8 @@ app = webapp2.WSGIApplication([
     ('/signup', SignupHandler),
     ('/login', LoginHandler),
     ('/logout', LogoutHandler)
-], debug=True)
+]
+app = webapp2.WSGIApplication(routes, debug=True)
 
 # A list of paths that a user must be logged in to access
 auth_paths = [
